@@ -1,0 +1,36 @@
+[Unit]
+Description=GitGenius - GitHub Automation Web Application
+Documentation=https://github.com/yourusername/gitgenius
+After=network.target postgresql.service redis.service
+
+[Service]
+Type=simple
+User=gitgenius
+Group=gitgenius
+WorkingDirectory=/opt/gitgenius
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=10
+
+# Environment
+Environment=NODE_ENV=production
+Environment=PORT=3000
+EnvironmentFile=/opt/gitgenius/.env
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/gitgenius
+
+# Logging
+StandardOutput=append:/var/log/gitgenius/app.log
+StandardError=append:/var/log/gitgenius/app-error.log
+
+# Resource limits
+LimitNOFILE=65535
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target

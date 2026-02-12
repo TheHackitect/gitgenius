@@ -1,0 +1,46 @@
+{
+  "id": "com.gitgenius.app",
+  "name": "GitGenius: GitHub Automation",
+  "short_name": "GitGenius",
+  "description": "Sophisticated GitHub automation platform to keep your contributions active",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#22c55e",
+  "orientation": "any",
+  "categories": ["productivity", "developer tools"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dash",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Automation",
+      "short_name": "Auto",
+      "url": "/dashboard/automation"
+    },
+    {
+      "name": "Jobs",
+      "short_name": "Jobs",
+      "url": "/dashboard/jobs"
+    }
+  ],
+  "prefer_related_applications": false
+}

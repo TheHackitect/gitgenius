@@ -1,0 +1,385 @@
+// GitGenius Database Schema
+// Sophisticated multi-account GitHub automation platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===========================================
+// User Management
+// ===========================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  password      String?   // For email/password auth
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  accounts        Account[]
+  sessions        Session[]
+  githubAccounts  GitHubAccount[]
+  activityLogs    ActivityLog[]
+  settings        UserSettings?
+  
+  @@index([email])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model UserSettings {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Notification preferences
+  emailNotifications    Boolean  @default(true)
+  pushNotifications     Boolean  @default(true)
+  weeklyReport          Boolean  @default(true)
+  
+  // Display preferences
+  theme                 String   @default("system") // light, dark, system
+  timezone              String   @default("UTC")
+  
+  // Default automation settings
+  defaultCommitFrequency    String   @default("balanced") // minimal, balanced, active, aggressive
+  defaultAutoCommitEnabled  Boolean  @default(false)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// ===========================================
+// GitHub Account Management
+// ===========================================
+
+model GitHubAccount {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // GitHub user info
+  githubId        String   @unique
+  username        String
+  displayName     String?
+  email           String?
+  avatarUrl       String?
+  profileUrl      String?
+  
+  // OAuth tokens (encrypted)
+  accessToken     String   @db.Text
+  refreshToken    String?  @db.Text
+  tokenExpiresAt  DateTime?
+  scopes          String[] @default([])
+  
+  // Account status
+  isActive        Boolean  @default(true)
+  isPrimary       Boolean  @default(false)
+  lastSyncAt      DateTime?
+  lastCommitAt    DateTime?
+  
+  // Stats cache
+  totalRepos      Int      @default(0)
+  totalCommits    Int      @default(0)
+  currentStreak   Int      @default(0)
+  longestStreak   Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  repositories        Repository[]
+  automationConfigs   AutomationConfig[]
+  automationJobs      AutomationJob[]
+  commitHistory       CommitRecord[]
+  contributionDays    ContributionDay[]
+
+  @@index([userId])
+  @@index([githubId])
+  @@index([username])
+}
+
+// ===========================================
+// Repository Management
+// ===========================================
+
+model Repository {
+  id              String   @id @default(cuid())
+  githubAccountId String
+  githubAccount   GitHubAccount @relation(fields: [githubAccountId], references: [id], onDelete: Cascade)
+  
+  // GitHub repo info
+  githubRepoId    String
+  name            String
+  fullName        String
+  description     String?
+  htmlUrl         String
+  cloneUrl        String
+  sshUrl          String
+  
+  // Repo details
+  isPrivate       Boolean  @default(false)
+  isFork          Boolean  @default(false)
+  isArchived      Boolean  @default(false)
+  defaultBranch   String   @default("main")
+  language        String?
+  
+  // Stats
+  stars           Int      @default(0)
+  forks           Int      @default(0)
+  watchers        Int      @default(0)
+  openIssues      Int      @default(0)
+  size            Int      @default(0)
+  
+  // Automation settings for this repo
+  isAutomationEnabled  Boolean  @default(false)
+  automationPriority   Int      @default(5) // 1-10, higher = more likely to be picked
+  
+  // Timestamps
+  lastCommitAt    DateTime?
+  lastPushedAt    DateTime?
+  repoCreatedAt   DateTime?
+  repoUpdatedAt   DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  commits         CommitRecord[]
+
+  @@unique([githubAccountId, githubRepoId])
+  @@index([githubAccountId])
+  @@index([isAutomationEnabled])
+}
+
+// ===========================================
+// Automation System
+// ===========================================
+
+model AutomationConfig {
+  id              String   @id @default(cuid())
+  githubAccountId String
+  githubAccount   GitHubAccount @relation(fields: [githubAccountId], references: [id], onDelete: Cascade)
+  
+  // Config name and status
+  name            String
+  description     String?
+  isEnabled       Boolean  @default(true)
+  
+  // Schedule settings
+  scheduleType    String   @default("smart") // smart, fixed, random, weekdays_only
+  cronExpression  String?  // For fixed schedule
+  timezone        String   @default("UTC")
+  
+  // Commit settings
+  minCommitsPerDay    Int      @default(1)
+  maxCommitsPerDay    Int      @default(5)
+  preferredHoursStart Int      @default(9)  // 24-hour format
+  preferredHoursEnd   Int      @default(18)
+  
+  // Content settings
+  commitTypes     String[] @default(["readme_update", "config_tweak", "doc_improvement"])
+  commitMessageStyle  String   @default("conventional") // conventional, casual, technical
+  
+  // Safety settings
+  skipWeekends    Boolean  @default(false)
+  skipHolidays    Boolean  @default(false)
+  maxStreakDays   Int      @default(365)
+  
+  // Variability settings (to appear more human)
+  variabilityFactor   Float    @default(0.3) // 0-1, how random the timing should be
+  skipProbability     Float    @default(0.1) // Chance to skip a day (more realistic)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([githubAccountId])
+  @@index([isEnabled])
+}
+
+model AutomationJob {
+  id              String   @id @default(cuid())
+  githubAccountId String
+  githubAccount   GitHubAccount @relation(fields: [githubAccountId], references: [id], onDelete: Cascade)
+  
+  // Job details
+  jobType         String   // commit, repo_update, profile_update, etc.
+  status          String   @default("pending") // pending, running, completed, failed, cancelled
+  priority        Int      @default(5) // 1-10
+  
+  // Scheduling
+  scheduledFor    DateTime
+  startedAt       DateTime?
+  completedAt     DateTime?
+  
+  // Execution details
+  attempts        Int      @default(0)
+  maxAttempts     Int      @default(3)
+  lastError       String?  @db.Text
+  
+  // Payload/Result
+  payload         Json?    // Job-specific data
+  result          Json?    // Result data
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([githubAccountId])
+  @@index([status])
+  @@index([scheduledFor])
+}
+
+// ===========================================
+// Analytics & Tracking
+// ===========================================
+
+model CommitRecord {
+  id              String   @id @default(cuid())
+  githubAccountId String
+  githubAccount   GitHubAccount @relation(fields: [githubAccountId], references: [id], onDelete: Cascade)
+  repositoryId    String?
+  repository      Repository? @relation(fields: [repositoryId], references: [id], onDelete: SetNull)
+  
+  // Commit details
+  sha             String
+  message         String
+  branch          String
+  
+  // Source
+  isAutomated     Boolean  @default(false)
+  automationJobId String?
+  
+  // Stats
+  additions       Int      @default(0)
+  deletions       Int      @default(0)
+  changedFiles    Int      @default(0)
+  
+  // Timestamps
+  committedAt     DateTime
+  pushedAt        DateTime?
+  
+  createdAt       DateTime @default(now())
+
+  @@index([githubAccountId])
+  @@index([repositoryId])
+  @@index([committedAt])
+  @@index([isAutomated])
+}
+
+model ContributionDay {
+  id              String   @id @default(cuid())
+  githubAccountId String
+  githubAccount   GitHubAccount @relation(fields: [githubAccountId], references: [id], onDelete: Cascade)
+  
+  date            DateTime @db.Date
+  contributionCount Int    @default(0)
+  level           Int      @default(0) // 0-4, matches GitHub's color levels
+  
+  // Breakdown
+  commits         Int      @default(0)
+  pullRequests    Int      @default(0)
+  issues          Int      @default(0)
+  reviews         Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([githubAccountId, date])
+  @@index([githubAccountId])
+  @@index([date])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Activity details
+  action    String   // login, logout, add_account, remove_account, enable_automation, etc.
+  category  String   // auth, account, automation, settings, etc.
+  details   Json?    // Additional context
+  
+  // Metadata
+  ipAddress String?
+  userAgent String?
+  
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// ===========================================
+// Commit Templates & Content
+// ===========================================
+
+model CommitTemplate {
+  id          String   @id @default(cuid())
+  
+  // Template info
+  name        String
+  description String?
+  category    String   // readme, docs, config, code, misc
+  
+  // Template content
+  filePatterns    String[] // Files this template can modify
+  contentTemplate String   @db.Text // Template for file content changes
+  messageTemplate String   // Template for commit message
+  
+  // Usage
+  isActive    Boolean  @default(true)
+  isBuiltIn   Boolean  @default(false)
+  usageCount  Int      @default(0)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([isActive])
+}
