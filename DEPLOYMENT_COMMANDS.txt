@@ -1,0 +1,78 @@
+================================================================================
+                    GITGENIUS DEPLOYMENT COMMANDS
+================================================================================
+
+1. CLONE FROM GITHUB
+--------------------
+git clone https://github.com/TheHackitect/gitgenius.git
+cd gitgenius
+
+2. INSTALL DEPENDENCIES
+-----------------------
+npm install
+
+3. SETUP ENVIRONMENT
+--------------------
+cp .env.example .env
+nano .env
+# Fill in your values:
+# DATABASE_URL, REDIS_URL, NEXTAUTH_URL, NEXTAUTH_SECRET
+# ENCRYPTION_KEY, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
+
+4. GENERATE PRISMA CLIENT
+-------------------------
+npx prisma generate
+
+5. RUN DATABASE MIGRATIONS
+--------------------------
+npx prisma migrate deploy
+
+6. BUILD THE APP
+----------------
+npm run build
+
+7. INSTALL PM2 (if not installed)
+---------------------------------
+npm install -g pm2
+
+8. START WITH PM2
+-----------------
+# Start the Next.js app
+pm2 start npm --name "gitgenius-app" -- start
+
+# Start the automation worker
+pm2 start npm --name "gitgenius-worker" -- run worker
+
+9. PM2 MANAGEMENT COMMANDS
+--------------------------
+pm2 status                    # Check status
+pm2 logs                      # View all logs
+pm2 logs gitgenius-app        # View app logs
+pm2 logs gitgenius-worker     # View worker logs
+pm2 restart all               # Restart all processes
+pm2 stop all                  # Stop all processes
+pm2 delete all                # Remove all processes
+
+10. SAVE PM2 CONFIG & AUTO-START ON REBOOT
+------------------------------------------
+pm2 save
+pm2 startup
+# Run the command it outputs to enable startup on boot
+
+================================================================================
+                         QUICK ONE-LINER
+================================================================================
+
+git clone https://github.com/TheHackitect/gitgenius.git && cd gitgenius && npm install && cp .env.example .env && echo "Edit .env file now" && read && npx prisma generate && npx prisma migrate deploy && npm run build && pm2 start npm --name "gitgenius-app" -- start && pm2 start npm --name "gitgenius-worker" -- run worker && pm2 save
+
+================================================================================
+                         PREREQUISITES
+================================================================================
+
+- Node.js 20+
+- PostgreSQL 14+ (running)
+- Redis 6+ (running)
+- PM2 installed globally (npm install -g pm2)
+- GitHub OAuth App credentials
+
+================================================================================
