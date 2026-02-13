@@ -21,11 +21,20 @@ nano .env
 
 4. GENERATE PRISMA CLIENT
 -------------------------
+npx prisma db push
 npx prisma generate
 
 5. RUN DATABASE MIGRATIONS
 --------------------------
 npx prisma migrate deploy
+
+# 2. Make yourself a superadmin
+node scripts/admin-cli.js make-superadmin your@email.com
+
+# 3. Generate VAPID keys for push notifications (if not done)
+node scripts/admin-cli.js generate-vapid
+# Add to .env: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
+
 
 6. BUILD THE APP
 ----------------
