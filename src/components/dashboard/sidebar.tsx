@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useSession } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -17,11 +18,12 @@ import {
   X,
   Home,
   MoreHorizontal,
+  Shield,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 
-const navigation = [
+const baseNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'GitHub Accounts', href: '/dashboard/accounts', icon: Github },
   { name: 'Repositories', href: '/dashboard/repositories', icon: GitBranch },
@@ -31,6 +33,8 @@ const navigation = [
   { name: 'Scheduled Jobs', href: '/dashboard/jobs', icon: Clock },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ];
+
+const adminNavItem = { name: 'Admin Panel', href: '/admin', icon: Shield };
 
 // Bottom nav items (main 4 + more menu)
 const bottomNavItems = [
@@ -43,6 +47,19 @@ const bottomNavItems = [
 export function DashboardSidebar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { data: session } = useSession();
+  
+  // Check if user is admin or superadmin
+  const isAdmin = (session?.user as { role?: string })?.role === 'ADMIN' || 
+                  (session?.user as { role?: string })?.role === 'SUPERADMIN';
+  
+  // Build navigation with admin link if applicable
+  const navigation = useMemo(() => {
+    if (isAdmin) {
+      return [...baseNavigation, adminNavItem];
+    }
+    return baseNavigation;
+  }, [isAdmin]);
 
   return (
     <>

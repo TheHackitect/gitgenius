@@ -24,15 +24,26 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  // Admin/Role fields
+  role          String    @default("user") // user, admin, superadmin
+  isActive      Boolean   @default(true)
+  isBanned      Boolean   @default(false)
+  bannedReason  String?
+  lastLoginAt   DateTime?
+  lastLoginIp   String?
+
   // Relations
-  accounts        Account[]
-  sessions        Session[]
-  githubAccounts  GitHubAccount[]
-  activityLogs    ActivityLog[]
-  notifications   Notification[]
-  settings        UserSettings?
+  accounts         Account[]
+  sessions         Session[]
+  githubAccounts   GitHubAccount[]
+  activityLogs     ActivityLog[]
+  notifications    Notification[]
+  settings         UserSettings?
+  pushSubscriptions PushSubscription[]
+  locations        UserLocation[]
   
   @@index([email])
+  @@index([role])
 }
 
 model Account {
@@ -395,7 +406,7 @@ model Notification {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   // Notification content
-  type        String   // job_completed, job_failed, streak_milestone, account_warning, system
+  type        String   // job_completed, job_failed, streak_milestone, account_warning, system, broadcast
   title       String
   message     String
   icon        String?  // Icon name or emoji
@@ -404,6 +415,10 @@ model Notification {
   resourceType String? // job, account, repository
   resourceId   String?
   actionUrl    String?
+  
+  // Broadcast notification link
+  broadcastId  String?
+  broadcast    BroadcastNotification? @relation(fields: [broadcastId], references: [id], onDelete: SetNull)
   
   // Status
   isRead      Boolean  @default(false)
@@ -414,4 +429,154 @@ model Notification {
   @@index([userId])
   @@index([userId, isRead])
   @@index([createdAt])
+  @@index([broadcastId])
+}
+
+// ===========================================
+// Push Notifications
+// ===========================================
+
+model PushSubscription {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Web Push subscription
+  endpoint    String   @unique
+  p256dh      String   @db.Text
+  auth        String   @db.Text
+  
+  // Device info
+  deviceName  String?
+  userAgent   String?
+  
+  // Status
+  isActive    Boolean  @default(true)
+  lastUsedAt  DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([isActive])
+}
+
+// ===========================================
+// User Location (for analytics and scheduling)
+// ===========================================
+
+model UserLocation {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Location data
+  latitude    Float
+  longitude   Float
+  accuracy    Float?
+  altitude    Float?
+  altitudeAccuracy Float?
+  heading     Float?
+  speed       Float?
+  
+  // Reverse geocoded info
+  country     String?
+  countryCode String?
+  region      String?
+  city        String?
+  postalCode  String?
+  timezone    String?
+  
+  // Metadata
+  source      String   @default("gps") // gps, network, ip
+  ipAddress   String?
+  
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ===========================================
+// Broadcast Notifications (Admin)
+// ===========================================
+
+model BroadcastNotification {
+  id          String   @id @default(cuid())
+  
+  // Content (Markdown supported)
+  title       String
+  message     String   @db.Text
+  icon        String?
+  actionUrl   String?
+  
+  // Targeting
+  targetRole  String?  // null = all users, or "user", "admin"
+  targetUserIds String[] // Specific user IDs, empty = all
+  
+  // Scheduling
+  scheduledFor DateTime?
+  sentAt      DateTime?
+  
+  // Stats
+  totalSent   Int      @default(0)
+  totalRead   Int      @default(0)
+  
+  // Status
+  status      String   @default("draft") // draft, scheduled, sent, cancelled
+  
+  // Creator
+  createdBy   String
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  notifications Notification[]
+
+  @@index([status])
+  @@index([scheduledFor])
+}
+
+// ===========================================
+// App Settings (Admin controlled)
+// ===========================================
+
+model AppSettings {
+  id          String   @id @default(cuid())
+  
+  key         String   @unique
+  value       String   @db.Text
+  type        String   @default("string") // string, json, boolean, number
+  description String?
+  
+  updatedBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([key])
+}
+
+// ===========================================
+// Legal Pages (Admin editable)
+// ===========================================
+
+model LegalPage {
+  id          String   @id @default(cuid())
+  
+  slug        String   @unique // terms, privacy, etc.
+  title       String
+  content     String   @db.Text // Markdown content
+  
+  isPublished Boolean  @default(true)
+  publishedAt DateTime?
+  
+  // Version control
+  version     Int      @default(1)
+  
+  updatedBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([slug])
 }

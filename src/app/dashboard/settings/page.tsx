@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,13 +22,16 @@ import {
   Moon,
   Sun,
   Monitor,
+  Smartphone,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import { usePushNotifications } from '@/hooks/use-push-notifications';
 
 export default function SettingsPage() {
   const { data: session, update } = useSession();
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
+  const pushNotifications = usePushNotifications();
   
   const [profile, setProfile] = useState({
     name: session?.user?.name || '',
@@ -250,6 +253,73 @@ export default function SettingsPage() {
 
         {/* Notifications Tab */}
         <TabsContent value="notifications" className="space-y-4">
+          {/* Push Notifications */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Smartphone className="h-5 w-5" />
+                Push Notifications
+              </CardTitle>
+              <CardDescription>
+                Get instant notifications on your device
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {!pushNotifications.isSupported ? (
+                <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                  <p className="text-sm text-yellow-500">
+                    Push notifications are not supported in your browser.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Enable Push Notifications</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Receive instant alerts for important events
+                      </p>
+                    </div>
+                    <Switch
+                      checked={pushNotifications.isSubscribed}
+                      disabled={pushNotifications.isLoading}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          pushNotifications.subscribe();
+                        } else {
+                          pushNotifications.unsubscribe();
+                        }
+                      }}
+                    />
+                  </div>
+                  
+                  {pushNotifications.permission === 'denied' && (
+                    <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+                      <p className="text-sm text-red-500">
+                        Notifications are blocked. Please enable them in your browser settings.
+                      </p>
+                    </div>
+                  )}
+                  
+                  {pushNotifications.error && (
+                    <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+                      <p className="text-sm text-red-500">{pushNotifications.error}</p>
+                    </div>
+                  )}
+                  
+                  {pushNotifications.isSubscribed && (
+                    <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                        <span className="text-sm text-green-500">Push notifications are enabled</span>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Email Notifications</CardTitle>

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { sendPushToUser } from '@/lib/push';
 
 export type NotificationType = 
   | 'job_completed' 
@@ -7,6 +8,7 @@ export type NotificationType =
   | 'account_warning' 
   | 'system'
   | 'job_cancelled'
+  | 'broadcast'
   | 'welcome';
 
 interface CreateNotificationParams {
@@ -18,26 +20,63 @@ interface CreateNotificationParams {
   resourceType?: 'job' | 'account' | 'repository';
   resourceId?: string;
   actionUrl?: string;
+  sendPush?: boolean; // Whether to also send push notification
 }
 
 export async function createNotification(params: CreateNotificationParams) {
   try {
+    const icon = params.icon || getIconForType(params.type);
+    
     const notification = await prisma.notification.create({
       data: {
         userId: params.userId,
         type: params.type,
         title: params.title,
         message: params.message,
-        icon: params.icon || getIconForType(params.type),
+        icon,
         resourceType: params.resourceType,
         resourceId: params.resourceId,
         actionUrl: params.actionUrl,
       },
     });
+    
+    // Send push notification if enabled (default: true for important notifications)
+    const shouldSendPush = params.sendPush ?? shouldAutoSendPush(params.type);
+    
+    if (shouldSendPush) {
+      // Send push notification asynchronously (don't await to avoid blocking)
+      sendPushToUser(params.userId, {
+        title: params.title,
+        body: params.message,
+        icon,
+        actionUrl: params.actionUrl || '/dashboard',
+        notificationId: notification.id,
+        tag: `gitgenius-${params.type}`,
+        timestamp: Date.now(),
+      }).catch(err => console.error('Push notification failed:', err));
+    }
+    
     return notification;
   } catch (error) {
     console.error('Failed to create notification:', error);
     return null;
+  }
+}
+
+// Determine if we should auto-send push for this notification type
+function shouldAutoSendPush(type: NotificationType): boolean {
+  switch (type) {
+    case 'job_completed':
+    case 'job_failed':
+    case 'streak_milestone':
+    case 'account_warning':
+    case 'broadcast':
+      return true;
+    case 'welcome':
+    case 'system':
+    case 'job_cancelled':
+    default:
+      return false;
   }
 }
 

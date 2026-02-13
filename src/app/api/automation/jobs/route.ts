@@ -17,7 +17,10 @@ export async function GET(request: NextRequest) {
     const accountId = searchParams.get('accountId');
     const status = searchParams.get('status');
     const page = parseInt(searchParams.get('page') || '1');
-    const pageSize = parseInt(searchParams.get('pageSize') || '20');
+    const pageSize = Math.min(parseInt(searchParams.get('pageSize') || '20'), 50); // Max 50 per page
+    
+    // Limit to latest 100 jobs total
+    const MAX_TOTAL_JOBS = 100;
 
     const where = {
       githubAccount: {
@@ -27,7 +30,7 @@ export async function GET(request: NextRequest) {
       ...(status && { status }),
     };
 
-    const [jobs, total] = await Promise.all([
+    const [jobs, rawTotal] = await Promise.all([
       prisma.automationJob.findMany({
         where,
         include: {
@@ -40,11 +43,14 @@ export async function GET(request: NextRequest) {
           },
         },
         orderBy: { scheduledFor: 'desc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
+        skip: Math.min((page - 1) * pageSize, MAX_TOTAL_JOBS),
+        take: Math.min(pageSize, MAX_TOTAL_JOBS - (page - 1) * pageSize),
       }),
       prisma.automationJob.count({ where }),
     ]);
+    
+    // Cap total at 100
+    const total = Math.min(rawTotal, MAX_TOTAL_JOBS);
 
     return NextResponse.json({
       jobs,
@@ -53,6 +59,7 @@ export async function GET(request: NextRequest) {
         pageSize,
         total,
         totalPages: Math.ceil(total / pageSize),
+        maxJobsLimit: MAX_TOTAL_JOBS,
       },
     });
   } catch (error) {

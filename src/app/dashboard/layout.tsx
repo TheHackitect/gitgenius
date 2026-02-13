@@ -16,11 +16,14 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen max-h-screen h-screen bg-background flex flex-col overflow-hidden">
       <DashboardSidebar />
-      <div className="lg:pl-64">
-        <DashboardHeader user={session.user} />
-        <main className="py-6 px-4 sm:px-6 lg:px-8 pb-24 lg:pb-6">
+      <div className="lg:pl-64 flex flex-col flex-1 overflow-hidden">
+        <DashboardHeader user={{
+          ...session.user,
+          role: session.user.role,
+        }} />
+        <main className="flex-1 overflow-y-auto py-4 px-4 sm:px-6 lg:px-8 pb-20 lg:pb-6">
           {children}
         </main>
       </div>

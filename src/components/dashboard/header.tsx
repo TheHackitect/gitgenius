@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Moon, Sun, Settings, LogOut, User } from 'lucide-react';
+import { Moon, Sun, Settings, LogOut, User, Shield } from 'lucide-react';
 import { NotificationDropdown } from '@/components/notifications/notification-dropdown';
 import Link from 'next/link';
 
@@ -21,11 +21,13 @@ interface DashboardHeaderProps {
     name?: string | null;
     email?: string | null;
     image?: string | null;
+    role?: 'USER' | 'ADMIN' | 'SUPERADMIN';
   };
 }
 
 export function DashboardHeader({ user }: DashboardHeaderProps) {
   const { theme, setTheme } = useTheme();
+  const isAdmin = user.role === 'ADMIN' || user.role === 'SUPERADMIN';
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -85,6 +87,17 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              {isAdmin && (
+                <>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin" className="cursor-pointer">
+                      <Shield className="mr-2 h-4 w-4" />
+                      <span>Admin Panel</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               <DropdownMenuItem asChild>
                 <Link href="/dashboard/settings/profile" className="cursor-pointer">
                   <User className="mr-2 h-4 w-4" />
