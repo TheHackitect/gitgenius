@@ -10,11 +10,15 @@ export const metadata: Metadata = {
   title: 'GitGenius - Smart GitHub Automation',
   description: 'Keep your GitHub contributions alive with intelligent automation. Manage multiple accounts, track analytics, and maintain your contribution streak effortlessly.',
   keywords: ['github', 'automation', 'contributions', 'commits', 'developer tools'],
-  authors: [{ name: 'GitGenius Team' }],
+  authors: [{ name: 'The Hackitect' }],
   manifest: '/manifest.json',
   icons: {
-    icon: '/icon.svg',
-    apple: '/icon.svg',
+    icon: [
+      { url: '/favicon.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: '/apple-touch-icon.png',
   },
   appleWebApp: {
     capable: true,
