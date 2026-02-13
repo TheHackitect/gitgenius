@@ -20,7 +20,7 @@ export default async function DashboardLayout({
       <DashboardSidebar />
       <div className="lg:pl-64">
         <DashboardHeader user={session.user} />
-        <main className="py-6 px-4 sm:px-6 lg:px-8">
+        <main className="py-6 px-4 sm:px-6 lg:px-8 pb-24 lg:pb-6">
           {children}
         </main>
       </div>

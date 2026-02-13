@@ -29,6 +29,7 @@ model User {
   sessions        Session[]
   githubAccounts  GitHubAccount[]
   activityLogs    ActivityLog[]
+  notifications   Notification[]
   settings        UserSettings?
   
   @@index([email])
@@ -382,4 +383,35 @@ model CommitTemplate {
 
   @@index([category])
   @@index([isActive])
+}
+
+// ===========================================
+// Notifications
+// ===========================================
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Notification content
+  type        String   // job_completed, job_failed, streak_milestone, account_warning, system
+  title       String
+  message     String
+  icon        String?  // Icon name or emoji
+  
+  // Link to related resource
+  resourceType String? // job, account, repository
+  resourceId   String?
+  actionUrl    String?
+  
+  // Status
+  isRead      Boolean  @default(false)
+  isArchived  Boolean  @default(false)
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([userId])
+  @@index([userId, isRead])
+  @@index([createdAt])
 }

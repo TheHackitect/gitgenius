@@ -12,7 +12,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Bell, Moon, Sun, Settings, LogOut, User } from 'lucide-react';
+import { Moon, Sun, Settings, LogOut, User } from 'lucide-react';
+import { NotificationDropdown } from '@/components/notifications/notification-dropdown';
 import Link from 'next/link';
 
 interface DashboardHeaderProps {
@@ -60,11 +61,7 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
           </Button>
 
           {/* Notifications */}
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-5 w-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full" />
-            <span className="sr-only">Notifications</span>
-          </Button>
+          <NotificationDropdown />
 
           {/* User menu */}
           <DropdownMenu>

@@ -46,8 +46,20 @@ export async function GET(request: NextRequest) {
       accountIds = accounts.map(a => a.id);
     }
 
-    // Get contribution data
-    const contributions = await prisma.contributionDay.findMany({
+    // Get commit records from automation - this is the primary data source
+    const commitRecords = await prisma.commitRecord.findMany({
+      where: {
+        githubAccountId: { in: accountIds },
+        committedAt: { gte: startDate },
+      },
+      select: {
+        committedAt: true,
+      },
+      orderBy: { committedAt: 'asc' },
+    });
+
+    // Also get ContributionDay data if available
+    const contributionDays = await prisma.contributionDay.findMany({
       where: {
         githubAccountId: { in: accountIds },
         date: { gte: startDate },
@@ -55,7 +67,7 @@ export async function GET(request: NextRequest) {
       orderBy: { date: 'asc' },
     });
 
-    // Aggregate by date if multiple accounts
+    // Aggregate commits by date
     const aggregated = new Map<string, {
       date: string;
       count: number;
@@ -66,17 +78,39 @@ export async function GET(request: NextRequest) {
       reviews: number;
     }>();
 
-    for (const c of contributions) {
+    // First, add all commit records
+    for (const commit of commitRecords) {
+      const dateStr = commit.committedAt.toISOString().split('T')[0];
+      const existing = aggregated.get(dateStr);
+      
+      if (existing) {
+        existing.count += 1;
+        existing.commits += 1;
+        existing.level = getContributionLevel(existing.count);
+      } else {
+        aggregated.set(dateStr, {
+          date: dateStr,
+          count: 1,
+          level: 1,
+          commits: 1,
+          pullRequests: 0,
+          issues: 0,
+          reviews: 0,
+        });
+      }
+    }
+
+    // Then merge with ContributionDay data (if any)
+    for (const c of contributionDays) {
       const dateStr = c.date.toISOString().split('T')[0];
       const existing = aggregated.get(dateStr);
       
       if (existing) {
-        existing.count += c.contributionCount;
-        existing.commits += c.commits;
+        // Add contribution day data but don't double count commits
         existing.pullRequests += c.pullRequests;
         existing.issues += c.issues;
         existing.reviews += c.reviews;
-        // Recalculate level
+        existing.count = existing.commits + c.pullRequests + c.issues + c.reviews;
         existing.level = getContributionLevel(existing.count);
       } else {
         aggregated.set(dateStr, {
@@ -111,7 +145,8 @@ export async function GET(request: NextRequest) {
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    return NextResponse.json({ contributions: result });
+    // Return as flat array (frontend expects this format)
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Failed to fetch contributions:', error);
     return NextResponse.json(

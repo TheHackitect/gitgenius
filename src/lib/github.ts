@@ -68,11 +68,44 @@ export class GitHubService {
     sort?: 'created' | 'updated' | 'pushed' | 'full_name';
     per_page?: number;
     page?: number;
+    fetchAll?: boolean;
   }): Promise<GitHubRepository[]> {
+    const perPage = options?.per_page || 100;
+    const type = options?.type || 'owner';
+    const sort = options?.sort || 'updated';
+    
+    // If fetchAll is true, paginate through all pages
+    if (options?.fetchAll) {
+      const allRepos: GitHubRepository[] = [];
+      let page = 1;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const { data } = await this.octokit.repos.listForAuthenticatedUser({
+          type,
+          sort,
+          per_page: perPage,
+          page,
+        });
+        
+        allRepos.push(...(data as GitHubRepository[]));
+        
+        // If we got less than per_page results, we've reached the end
+        if (data.length < perPage) {
+          hasMore = false;
+        } else {
+          page++;
+        }
+      }
+      
+      return allRepos;
+    }
+    
+    // Single page fetch (original behavior)
     const { data } = await this.octokit.repos.listForAuthenticatedUser({
-      type: options?.type || 'owner',
-      sort: options?.sort || 'updated',
-      per_page: options?.per_page || 100,
+      type,
+      sort,
+      per_page: perPage,
       page: options?.page || 1,
     });
     return data as GitHubRepository[];
@@ -283,7 +316,7 @@ export class GitHubService {
 export async function syncGitHubAccountData(githubAccountId: string): Promise<void> {
   const service = await GitHubService.fromGitHubAccountId(githubAccountId);
   const user = await service.getAuthenticatedUser();
-  const repos = await service.getUserRepositories();
+  const repos = await service.getUserRepositories({ fetchAll: true });
 
   // Update account info
   await prisma.gitHubAccount.update({

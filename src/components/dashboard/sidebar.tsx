@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -12,7 +13,13 @@ import {
   Settings,
   Clock,
   Activity,
+  Menu,
+  X,
+  Home,
+  MoreHorizontal,
 } from 'lucide-react';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -25,8 +32,17 @@ const navigation = [
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ];
 
+// Bottom nav items (main 4 + more menu)
+const bottomNavItems = [
+  { name: 'Home', href: '/dashboard', icon: Home },
+  { name: 'Repos', href: '/dashboard/repositories', icon: GitBranch },
+  { name: 'Automation', href: '/dashboard/automation', icon: Zap },
+  { name: 'Jobs', href: '/dashboard/jobs', icon: Clock },
+];
+
 export function DashboardSidebar() {
   const pathname = usePathname();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <>
@@ -90,26 +106,65 @@ export function DashboardSidebar() {
       </div>
 
       {/* Mobile bottom navigation */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
-        <nav className="flex justify-around py-2">
-          {navigation.slice(0, 5).map((item) => {
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border z-50 safe-area-bottom">
+        <nav className="flex justify-between items-center px-2 py-1">
+          {bottomNavItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
             return (
               <Link
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  'flex flex-col items-center px-3 py-2 text-xs',
+                  'flex flex-col items-center justify-center flex-1 py-2 min-w-0',
                   isActive ? 'text-primary' : 'text-muted-foreground'
                 )}
               >
-                <item.icon className="h-5 w-5 mb-1" />
-                <span className="truncate max-w-[60px]">{item.name}</span>
+                <item.icon className="h-5 w-5" />
+                <span className="text-[10px] mt-0.5 truncate">{item.name}</span>
               </Link>
             );
           })}
+          
+          {/* More menu trigger */}
+          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+            <SheetTrigger asChild>
+              <button
+                className="flex flex-col items-center justify-center flex-1 py-2 min-w-0 text-muted-foreground"
+              >
+                <MoreHorizontal className="h-5 w-5" />
+                <span className="text-[10px] mt-0.5">More</span>
+              </button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="h-auto max-h-[70vh] rounded-t-2xl">
+              <SheetTitle className="text-lg font-semibold mb-4">Navigation</SheetTitle>
+              <nav className="grid grid-cols-3 gap-4 pb-safe">
+                {navigation.map((item) => {
+                  const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={cn(
+                        'flex flex-col items-center justify-center p-4 rounded-xl transition-colors',
+                        isActive
+                          ? 'bg-primary/10 text-primary'
+                          : 'bg-accent/50 text-muted-foreground hover:bg-accent'
+                      )}
+                    >
+                      <item.icon className="h-6 w-6 mb-2" />
+                      <span className="text-xs text-center font-medium">{item.name}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            </SheetContent>
+          </Sheet>
         </nav>
       </div>
+
+      {/* Spacer for bottom nav on mobile */}
+      <div className="lg:hidden h-16" />
     </>
   );
 }

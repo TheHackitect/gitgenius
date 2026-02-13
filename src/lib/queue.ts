@@ -1,6 +1,7 @@
 import { Queue, Worker, Job, QueueEvents } from 'bullmq';
 import { prisma } from './prisma';
 import { executeAutomationJob } from './automation';
+import { notifyJobCancelled } from './notifications';
 
 // Build Redis connection options from env vars
 const getRedisConnection = () => {
@@ -229,10 +230,22 @@ export async function cancelAutomationJob(jobId: string): Promise<void> {
     await bullJob.remove();
   }
 
-  await prisma.automationJob.update({
+  const job = await prisma.automationJob.update({
     where: { id: jobId },
     data: { status: 'cancelled' },
+    include: {
+      githubAccount: {
+        select: { userId: true, username: true },
+      },
+    },
   });
+
+  // Send cancellation notification
+  await notifyJobCancelled(
+    job.githubAccount.userId,
+    jobId,
+    job.githubAccount.username
+  );
 }
 
 // Run a pending job immediately

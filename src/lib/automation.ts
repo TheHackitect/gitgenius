@@ -2,6 +2,7 @@ import { prisma } from './prisma';
 import { GitHubService } from './github';
 import { CommitType } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
+import { notifyJobCompleted, notifyJobFailed } from './notifications';
 
 // Commit message templates
 const COMMIT_MESSAGES = {
@@ -389,6 +390,7 @@ export async function executeAutomationJob(jobId: string): Promise<void> {
     include: {
       githubAccount: {
         include: {
+          user: true,
           repositories: {
             where: {
               isAutomationEnabled: true,
@@ -483,6 +485,14 @@ export async function executeAutomationJob(jobId: string): Promise<void> {
         },
       });
 
+      // Send notification
+      await notifyJobCompleted(
+        job.githubAccount.userId,
+        jobId,
+        repo.fullName,
+        1
+      );
+
       // Update account stats
       await prisma.gitHubAccount.update({
         where: { id: job.githubAccountId },
@@ -519,14 +529,27 @@ export async function executeAutomationJob(jobId: string): Promise<void> {
       throw new Error(result.error);
     }
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const isFinalFailure = job.attempts >= job.maxAttempts;
+    
     // Update job as failed
     await prisma.automationJob.update({
       where: { id: jobId },
       data: {
-        status: job.attempts >= job.maxAttempts ? 'failed' : 'pending',
-        lastError: error instanceof Error ? error.message : 'Unknown error',
+        status: isFinalFailure ? 'failed' : 'pending',
+        lastError: errorMessage,
       },
     });
+
+    // Send failure notification only on final failure
+    if (isFinalFailure) {
+      await notifyJobFailed(
+        job.githubAccount.userId,
+        jobId,
+        job.githubAccount.username,
+        errorMessage
+      );
+    }
 
     throw error;
   }
